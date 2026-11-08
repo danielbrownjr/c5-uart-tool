@@ -1,0 +1,14 @@
+# ESP-IDF
+/build/
+/artifacts/
+/sdkconfig
+/sdkconfig.old
+/managed_components/
+/dependencies.lock
+# Host
+__pycache__/
+*.py[cod]
+.venv/
+*.raw
+*.jsonl
+.DS_Store
