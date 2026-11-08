@@ -4,7 +4,7 @@ Official target: **Waveshare ESP32-C5-WIFI6-KIT-NXRX**, ESP32-C5-WROOM-1U, photo
 
 ## GitHub milestone definitions
 
-Create these **actual GitHub repository milestones** when the GitHub API/CLI is available. These exact titles and descriptions are the stable cross-reference; GitHub milestones are not yet created by the connected tool.
+Create these **actual GitHub repository milestones** when the GitHub API/CLI is available. These exact titles and descriptions are the stable cross-reference; Milestones 1, 2 and 3 were created and their issue associations read back on 2026-11-08.
 
 ### M1 - Waveshare firmware acceptance
 

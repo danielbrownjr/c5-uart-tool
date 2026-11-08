@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 
 MAGIC = b"C5RX"
+STATUS_MAGIC = b"C5ST"
+STATUS_FIELDS = ("uart_fifo_overflow", "uart_buffer_full", "uart_parity_error",
+                 "uart_frame_error", "usb_enqueue_failures")
 MAX_PAYLOAD = 256
 OVERHEAD = 16
 
@@ -21,6 +24,7 @@ class Frame:
     sequence: int
     uptime_ms: int
     payload: bytes
+    kind: str = "data"
 
 
 class Decoder:
@@ -32,17 +36,20 @@ class Decoder:
         self.buffer.extend(data)
         frames = []
         while True:
-            pos = self.buffer.find(MAGIC)
-            if pos < 0:
+            positions = [p for magic in (MAGIC, STATUS_MAGIC)
+                         if (p := self.buffer.find(magic)) >= 0]
+            if not positions:
                 # Preserve a possible split magic prefix.
                 self.buffer[:] = self.buffer[-3:]
                 break
+            pos = min(positions)
             if pos:
                 del self.buffer[:pos]
             if len(self.buffer) < OVERHEAD:
                 break
             length = int.from_bytes(self.buffer[4:6], "little")
-            if length > MAX_PAYLOAD:
+            status = self.buffer[:4] == STATUS_MAGIC
+            if length > MAX_PAYLOAD or (status and length != 4 * len(STATUS_FIELDS)):
                 self.corrupt += 1
                 del self.buffer[0]
                 continue
@@ -59,6 +66,7 @@ class Decoder:
                 int.from_bytes(self.buffer[6:10], "little"),
                 int.from_bytes(self.buffer[10:14], "little"),
                 bytes(self.buffer[14:total - 2]),
+                "status" if status else "data",
             ))
             del self.buffer[:total]
         return frames

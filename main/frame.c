@@ -22,16 +22,32 @@ static uint16_t crc16(const uint8_t *data, size_t len) {
     return crc;
 }
 
-size_t c5_frame_encode(uint8_t *out, size_t capacity,
+static size_t encode(const char magic[4], uint8_t *out, size_t capacity,
                        const uint8_t *payload, size_t length,
                        uint32_t sequence, uint32_t uptime_ms) {
     if (!out || (!payload && length) || length > C5_FRAME_MAX_PAYLOAD ||
         capacity < length + C5_FRAME_OVERHEAD) return 0;
-    memcpy(out, "C5RX", 4);
+    memcpy(out, magic, 4);
     put16(out + 4, (uint16_t)length);
     put32(out + 6, sequence);
     put32(out + 10, uptime_ms);
     if (length) memcpy(out + 14, payload, length);
     put16(out + 14 + length, crc16(out + 4, 10 + length));
     return C5_FRAME_OVERHEAD + length;
+}
+
+size_t c5_frame_encode(uint8_t *out, size_t capacity,
+                       const uint8_t *payload, size_t length,
+                       uint32_t sequence, uint32_t uptime_ms) {
+    return encode("C5RX", out, capacity, payload, length, sequence, uptime_ms);
+}
+
+size_t c5_status_encode(uint8_t *out, size_t capacity,
+                        const uint32_t counters[C5_STATUS_COUNTERS],
+                        uint32_t sequence, uint32_t uptime_ms) {
+    if (!counters) return 0;
+    uint8_t payload[4 * C5_STATUS_COUNTERS];
+    for (unsigned i = 0; i < C5_STATUS_COUNTERS; ++i)
+        put32(payload + 4 * i, counters[i]);
+    return encode("C5ST", out, capacity, payload, sizeof(payload), sequence, uptime_ms);
 }

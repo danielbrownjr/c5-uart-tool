@@ -7,7 +7,7 @@ Official **Waveshare ESP32-C5-WIFI6-KIT-NXRX**, identified by the physical rear 
 - Receiver: UART1 RX on **GPIO4 / header P2 pin 8** according to the Waveshare schematic.
 - USB output: **native USB** connector marked `USB`. Do not confuse this with CH343P `UART` connector.
 - Receive-only: no target TX, reset, boot, PMIC or power control.
-- Existing `sdkconfig.defaults` assumes 4 MB flash and is **not accepted for physical flash** until corrected/verified against actual hardware.
+- `sdkconfig.defaults` selects the NXRX 32R8U **32 MB** profile (DIO/80 MHz), with PSRAM unused. Build verification checks effective configuration and image headers. Actual device capacity still requires separately authorized verification before physical flashing.
 
 ## Development bounds
 

@@ -1,11 +1,11 @@
 menu "C5 UART capture"
     config C5_UART_RX_GPIO
         int "UART1 receive-only GPIO (verify board wiring before connecting)"
-        range 0 28
+        range 4 4
         default 4
         help
-            GPIO4 is an initial software default, NOT a verified UeeKKoo or
-            Waveshare board connection. Verify the physical board before wiring.
+            Waveshare NXRX profile: GPIO4 / P2 pin 8 in the OEM schematic.
+            Verify physical revision and orientation before wiring.
 
     config C5_UART_BAUD
         int "UART receive baud rate"

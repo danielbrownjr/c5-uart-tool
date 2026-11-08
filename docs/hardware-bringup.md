@@ -17,7 +17,7 @@ The [Waveshare NXRX schematic](https://files.waveshare.com/wiki/ESP32-C5-WIFI6-K
 
 GPIO4 is exposed independently of the dedicated bridge's UART nets in the published schematic. This confirms the **design** supports the chosen input; physical pad/silk orientation and actual revision remain the final gate.
 
-The sticker `32R8U` indicates an expected **32 MB flash / 8 MB PSRAM** variant. Before any flashing, read chip identity and flash geometry with a **separately approved** read-only device probe; reconcile the effective ESP-IDF `sdkconfig` and flash arguments. The existing `CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y` is a known mismatch and **blocks flash approval** until fixed and verified. Do not change chip fuses, bootloader, partitions or full-flash contents as a workaround.
+The sticker `32R8U` indicates an expected **32 MB flash / 8 MB PSRAM** variant. Before any flashing, read chip identity and flash geometry with a **separately approved** read-only device probe; reconcile the effective ESP-IDF `sdkconfig` and flash arguments. M1 selects `CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y` with DIO/80 MHz and verifies generated images and flash arguments. This resolves the software default mismatch, **not** the unmeasured device capacity. PSRAM remains unused. Do not change chip fuses, bootloader, partitions or full-flash contents as a workaround.
 
 Waveshare's board may be flashed with Biscuit firmware, but that fact alone does not prove the wiring or flash size. The silkscreen plus schematic are the authoritative board-identification basis.
 
@@ -35,7 +35,7 @@ No physical connection to StickS3 RX, its power rails, boot pins, reset pins, PM
 ## Ordered acceptance gates
 
 1. **Software:** host decoder tests and linked ESP32-C5 firmware image validated at the exact candidate SHA, with clean action runtimes.
-2. **Flash configuration:** actual flash capacity, flash mode/frequency, partition layout and image set agree. Existing 4 MB default corrected, effective settings inspected, recovery path established.
+2. **Flash configuration:** actual flash capacity, flash mode/frequency, partition layout and image set agree. The 32 MB software profile is checked; actual capacity and recovery path must still be established.
 3. **Hardware identity:** PCB revision, module, `IO4`, `GND`, `USB`, and `UART` labels independently confirmed. No powered external wiring.
 4. **C5 bring-up, separately authorized:** known-good backup/recovery as relevant, scoped C5 flash, native USB enumeration, then a receive-only known-byte test from an independently verified 3.3 V source.
 5. **StickS3 test, separately authorized:** preserve its currently failing application; capture UART0 at 115200 8N1 starting *before* normal power-on. Record reset reason, ROM/bootloader output and host USB enumeration separately.
