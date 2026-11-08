@@ -1,110 +1,92 @@
 # C5 UART Tool
 
-Receive-only 3.3 V UART capture using an ESP32-C5 as a USB Serial/JTAG bridge.
-Designed initially for diagnosing missing normal-boot output on the M5Stack StickS3,
-but independent of StickShift and useful for other embedded boards.
+Receive-only 3.3 V UART diagnostic tool using the **Waveshare ESP32-C5-WIFI6-KIT-NXRX**. Initial use case: capture the normal-boot UART0 output of the M5Stack StickS3; the tool is intentionally independent of StickShift.
 
-**Status:** v0.1 implementation candidate, not yet target-compiled or hardware-tested.
-No device has been flashed by this repository.
+**Status:** experimental v0.1 on draft PR #1. Host tests and ESP32-C5 target build passed in [CI run 42505926780](https://github.com/danielbrownjr/c5-uart-tool/actions/runs/42505926780). No hardware validation or flashing has been performed by this repository.
+
+## Supported target
+
+- **Board:** Waveshare ESP32-C5-WIFI6-KIT-NXRX, identified by the rear PCB silkscreen in the project photos.
+- **Module:** ESP32-C5-WROOM-1U with external antenna.
+- **Observed sticker:** `32R8U`, suggesting a **32 MB flash / 8 MB PSRAM** variant. This is a model inference, not a chip-level flash-size measurement.
+- **UART input:** GPIO4, on **P2 pin 8** in the published NXRX schematic, labeled `IO4` on the board.
+- **Output:** native USB Serial/JTAG through the connector marked `USB`, **not** the `UART` USB-C connector with the onboard CH343P bridge.
+- **Ground:** a physical header pad labeled `GND`, verified by board orientation before wiring.
+
+Waveshare schematic: https://files.waveshare.com/wiki/ESP32-C5-WIFI6-KIT-NXRX/ESP32-C5-WIFI6-KIT-NXRX-Schematic.pdf
+
+Waveshare board guide: https://www.waveshare.com/wiki/ESP32-C5-WIFI6-KIT-NXRX
+
+GPIO4 is exposed on P2 pin 8 and is separate from the CH343P bridge's `UART_RXD`/`UART_TXD` header nets in this schematic. Firmware still needs physical verification of board revision and wiring before connection. Do not use `RXD` or `TXD` pads as the capture input; those belong to the onboard UART bridge.
+
+**Blocking configuration warning:** `sdkconfig.defaults` currently selects **4 MB flash**. This contradicts the apparent 32 MB model sticker and must be corrected or deliberately justified and verified against the *effective sdkconfig* and detected device flash before **any C5 flashing**. See the flash-configuration issue in the roadmap. A green CI build is not proof the image matches the exact physical module.
 
 ## Safety contract
 
-- ESP32-C5 **UART1 RX only**. No UART TX writes or flow-control outputs.
-- Output is through the C5's **native USB Serial/JTAG** connection, not the board's UART bridge.
-- Connect target TX to the chosen **verified input-capable C5 RX GPIO**, and **GND to GND**.
-- **Do not** connect target RX, target 3.3 V or 5 V, or any power line between boards.
-- Both sides must use compatible 3.3 V logic. Never connect RS-232 signal levels directly.
-- Select an unshared C5 GPIO using the **actual board schematic**, not a Biscuit firmware target
-  name or a generic ESP32-C5 pinout. The default GPIO4 is a software placeholder only.
-- If capture hardware is absent or uncertain, do not wire the boards.
-- No StickS3 boot pins need grounding. Leave its currently failing firmware intact.
-
-A board that accepts a Waveshare-targeted Biscuit build is **not proof** that its USB,
-headers, power supply, or available GPIO assignments match Waveshare's board revision.
+- Receive-only via **UART1 RX**. No UART TX writes, reset, boot, flow control, or target power connection.
+- Use only compatible **3.3 V TTL** signals. No RS-232-level direct wiring.
+- StickS3 **GPIO43/UART0 TX** to Waveshare **P2 pin 8 / GPIO4** only after the electrical and board identity gate passes.
+- Connect **GND to GND**. Leave target RX and all 3.3 V/5 V supply rails unconnected between boards.
+- Power each board independently through its own USB. Leave StickS3 boot pins alone.
+- Do not mistake accepting third-party Biscuit firmware for sufficient electrical evidence; the confirmed PCB silkscreen and OEM schematic determine the target.
 
 ## Architecture
 
 ```text
-StickS3 GPIO43 (UART0 TX) ----> [verified C5 GPIO] UART1 RX
-StickS3 GND ------------------> C5 GND
-C5 native USB ----------------> Mac or Hephaestus
-                                         |
-                                   tools/capture.py
-                                         |
-                                  .raw + .jsonl
+StickS3 Hat2 GPIO43 (UART0 TX) --> Waveshare P2-8 GPIO4 (UART1 RX)
+StickS3 Hat2 GND ----------------> Waveshare GND
+Waveshare USB port (native) -----> Mac or Hephaestus
+                                      |
+                                 tools/capture.py
+                                      |
+                                raw UART + JSONL
 ```
 
-`main/capture.c` receives UART1 bytes and packages them with sequence number
-and C5 uptime. `main/frame.c` implements a small CRC16-checked binary format.
-`tools/protocol.py` incrementally decodes it and resynchronizes after boot
-messages or corruption. `tools/capture.py` writes UART payload bytes without
-line-ending conversion, alongside UTC-reception timestamps and hex metadata.
+`main/capture.c` reads UART1 and `main/frame.c` packages bytes with sequence, C5 uptime and CRC16. `tools/protocol.py` decodes the framing and resynchronizes after extraneous boot output. `tools/capture.py` stores exact payload bytes and UTC-reception-time metadata.
 
-The USB wire format is `C5RX` + little-endian payload length (u16), sequence
-(u32), C5 uptime milliseconds (u32), payload (0..256 bytes), and CRC16/CCITT-FALSE
-(u16 LE) over the bytes following magic through payload. Receiver time is not
-equivalent to target-generated time. If USB backpressure causes data loss,
-missing frames can be detected only where the C5 emitted frames; dropped UART
-bytes *before framing* cannot always be detected.
+Frame format: `C5RX` magic + payload length (u16 LE) + sequence (u32 LE) + receiver uptime_ms (u32 LE) + 0..256 payload bytes + CRC16/CCITT-FALSE (u16 LE) covering metadata and payload. Receiver timestamps are **not** target timestamps. Dropped bytes within the C5 UART receive buffer are not guaranteed to be detectable by frame sequence numbers.
 
-## Build
+## Build and tests
 
-Requires a separately installed, active **ESP-IDF v6.1** environment.
-Source tree uses the regular CMake-based ESP-IDF layout.
+Requires an **already installed** ESP-IDF v6.1 environment. Do not install or alter Hephaestus tooling without authorization.
 
 ```sh
 idf.py set-target esp32c5
-idf.py menuconfig  # C5 UART capture -> verify RX GPIO and baud
+idf.py menuconfig   # confirm GPIO4, 115200, native USB console and actual flash profile
 idf.py build
 python3 -m unittest discover -s tests -v
 ```
 
-The firmware UART uses 115200 baud, 8N1 by default. The output host USB
-port baud setting is not the target UART baud.
+Inspect the generated effective `sdkconfig` and app flash arguments; **do not flash** until the 4 MB vs 32 MB discrepancy is resolved. No host or hardware writes beyond an authorized development build are implied by these instructions.
 
-The `sdkconfig` generated by `menuconfig` is local and ignored by git.
-`sdkconfig.defaults` selects the C5 native USB console. Inspect the
-**effective sdkconfig** before building/flashing.
+## Capture on host (after separately approved firmware flashing)
 
-No `idf.py flash` command is run automatically. Flashing the C5 and
-electrical connections require an explicit device-specific authorization.
-
-## Host capture
-
-Create a Python virtual environment and install `tools/requirements.txt`
-once if needed (host installation is a separate authorization):
+In an environment with pyserial available:
 
 ```sh
 python3 tools/capture.py --port /dev/cu.usbmodemXXXX \
   --raw stickshift-boot.raw --events stickshift-boot.jsonl
 ```
 
-Use the C5 **native USB** port. Choose a fresh output filename; captures
-are created exclusively and never overwritten. Start capture before powering
-the target. The decoder discards unrelated C5 ESP-IDF boot text until it finds
-a valid framed packet. USB host disconnection or target UART overrun may still
-lose bytes, so assess continuity and sequence numbers.
+On Linux, the port is commonly `/dev/ttyACM*`; confirm the actual enumerated device, never guess. USB host baud settings do not control the target's 115200 8N1 UART1 configuration. New capture files are created exclusively; never overwrite an earlier trace.
 
-## Repository
+## Repository layout
 
-- `main/`: ESP-IDF app, receiver and transport framing.
-- `tools/`: USB capture decoder and command-line recorder.
+- `main/`: ESP-IDF source, receive-only UART driver and binary framing.
+- `tools/`: Python USB decoder and capture CLI.
 - `tests/`: deterministic host protocol tests.
-- `.github/workflows/verify.yml`: tests and native target build, no flash.
-- `docs/`: wiring and bring-up acceptance gates.
+- `docs/`: board-specific electrical preflight and verification gates.
+- `.github/workflows/`: native ESP32-C5 build and host checks.
+- `AGENTS.md`: scoped engineering contract.
 
-Private hardware logs, raw serial captures, firmware backups, and machine
-paths must not be committed. Retained firmware artifacts intended for
-long-term use go to the personal Techbenders Drive under
-`Projects/C5 UART Tool` after account/folder verification.
+Project roadmap is tracked in GitHub issues. Keep the draft PR open until exact-candidate verification, flash profile, and review acceptance. Retained non-ephemeral project artifacts belong in the personal Techbenders Drive, `Projects / C5 UART Tool`, in a verified folder. Raw host backups and private captures must not be committed.
 
-## Acceptance
+## Acceptance gates
 
-1. Host decoder tests pass.
-2. Actual ESP32-C5 v6.1 build links firmware, with supported CI actions.
-3. Board-specific input/USB mapping verified against the physical board.
-4. Explicitly approved C5 flash, native USB enumeration, then a known-byte
-   receive-only loopback test.
-5. Only then connect StickS3 TX/GND and capture normal-boot UART0 at 115200.
+1. Verified host tests and ESP32-C5 target build, including action-runtime warnings.
+2. Corrected and validated effective flash geometry for the **actual** Waveshare module.
+3. Verified physical pad orientation, GPIO4 input capability, common ground, and USB selection.
+4. Separately authorized C5 flash, USB enumeration and known-byte receive-only check.
+5. Separately authorized connection to StickS3, followed by normal-boot UART0 capture.
 
-No claims of hardware acceptance until actual observations are recorded.
+Passing software gates does not authorize or prove the hardware gates.
