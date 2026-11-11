@@ -1,5 +1,5 @@
 # ESP-IDF
-/build/
+/build/\n/build-cyd/
 /artifacts/
 /sdkconfig
 /sdkconfig.old
