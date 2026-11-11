@@ -33,7 +33,8 @@ if [ "$profile" = cyd ]; then
     idf.py -B "$build_dir" -DSDKCONFIG="$config_file" \
         -DSDKCONFIG_DEFAULTS="$defaults_file" build 2>&1 | tee "$build_dir/evidence/build.log"
 else
-    idf.py -B "$build_dir" -DSDKCONFIG="$config_file" \\\n        -DSDKCONFIG_DEFAULTS="$defaults_file" build 2>&1 | tee "$build_dir/evidence/build.log"
+    idf.py -B "$build_dir" -DSDKCONFIG="$config_file" \
+        -DSDKCONFIG_DEFAULTS="$defaults_file" build 2>&1 | tee "$build_dir/evidence/build.log"
 fi
 python -m esptool --chip esp32c5 image-info "$build_dir/c5_uart_tool.bin" > "$build_dir/evidence/app-image.txt"
 python -m esptool --chip esp32c5 image-info "$build_dir/bootloader/bootloader.bin" > "$build_dir/evidence/bootloader-image.txt"
