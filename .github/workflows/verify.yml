@@ -38,11 +38,11 @@ jobs:
           esp_idf_version: v6.1
           target: esp32c5
           extra_docker_args: -e GITHUB_RUN_ID
-          command: bash tools/build-verify.sh
+          command: bash tools/build-verify.sh && C5_BOARD_PROFILE=cyd bash tools/build-verify.sh
       - name: Save linked firmware and flash layout (do not flash)
         uses: actions/upload-artifact@v6
         with:
           name: c5-uart-tool-${{ github.event.pull_request.head.sha || github.sha }}
-          path: build/retained/
+          path: |\n            build/retained/\n            build-cyd/retained/
           if-no-files-found: error
           retention-days: 90
