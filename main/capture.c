@@ -11,8 +11,17 @@
 #include "freertos/queue.h"
 #include "sdkconfig.h"
 
-#if !CONFIG_IDF_TARGET_ESP32C5 || !CONFIG_ESPTOOLPY_FLASHSIZE_32MB
-#error "Waveshare NXRX 32R8U profile requires ESP32-C5 and 32 MB flash"
+#if !CONFIG_IDF_TARGET_ESP32C5
+#error "C5 UART Tool requires ESP32-C5"
+#endif
+#if CONFIG_C5_BOARD_CYD
+#if !CONFIG_ESPTOOLPY_FLASHSIZE_16MB
+#error "RockBase CYD requires the 16 MB profile"
+#endif
+#else
+#if !CONFIG_ESPTOOLPY_FLASHSIZE_32MB
+#error "Waveshare NXRX requires the 32 MB profile"
+#endif
 #endif
 #if !CONFIG_ESP_CONSOLE_NONE || !CONFIG_ESP_CONSOLE_SECONDARY_NONE
 #error "Capture owns native USB Serial/JTAG; disable competing console writers"
