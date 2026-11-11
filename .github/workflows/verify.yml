@@ -43,6 +43,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: c5-uart-tool-${{ github.event.pull_request.head.sha || github.sha }}
-          path: |\n            build/retained/\n            build-cyd/retained/
+          path: |
+            build/retained/
+            build-cyd/retained/
           if-no-files-found: error
           retention-days: 90
