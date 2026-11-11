@@ -1,11 +1,22 @@
 menu "C5 UART capture"
+    choice C5_BOARD
+        prompt "Target board"
+        default C5_BOARD_WAVESHARE
+        help
+            Choose the physical board. Profiles have different flash geometry.
+        config C5_BOARD_WAVESHARE
+            bool "Waveshare ESP32-C5-WIFI6-KIT-NXRX (32 MB)"
+        config C5_BOARD_CYD
+            bool "RockBase NM-CYD-C5 (16 MB LCD)"
+    endchoice
+
     config C5_UART_RX_GPIO
         int "UART1 receive-only GPIO (verify board wiring before connecting)"
         range 4 4
         default 4
         help
-            Waveshare NXRX profile: GPIO4 / P2 pin 8 in the OEM schematic.
-            Verify physical revision and orientation before wiring.
+            Both documented target profiles expose UART1 capture on GPIO4.
+            Confirm actual board identity and connector orientation.
 
     config C5_UART_BAUD
         int "UART receive baud rate"
