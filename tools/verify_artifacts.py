@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the linked Waveshare profile and retain a hashed, reconstructible set."""
+"""Check the chosen board profile and retain linked, hashed build artifacts."""
 import hashlib
 import json
 import os
@@ -17,13 +17,20 @@ def require(condition, message):
 
 def main(build):
     build = Path(build)
+    profile = os.environ.get('C5_BOARD_PROFILE', 'waveshare')
+    require(profile in ('waveshare', 'cyd'), f'Unsupported profile: {profile}')
+    size = '16MB' if profile == 'cyd' else '32MB'
+    size_header = 0x4F if profile == 'cyd' else 0x5F
+    flag = 'C5_BOARD_CYD' if profile == 'cyd' else 'C5_BOARD_WAVESHARE'
+    config_path = Path(os.environ.get('C5_SDKCONFIG_FILE', 'sdkconfig'))
+    defaults_path = Path(os.environ.get('C5_DEFAULTS_FILE', 'sdkconfig.defaults'))
     config = {}
-    for line in Path('sdkconfig').read_text().splitlines():
+    for line in config_path.read_text().splitlines():
         if line.startswith('CONFIG_') and '=' in line:
             key, value = line.split('=', 1)
             config[key] = value.strip('"')
-    expected = {'IDF_TARGET': 'esp32c5', 'ESPTOOLPY_FLASHSIZE': '32MB',
-                'ESPTOOLPY_FLASHSIZE_32MB': 'y', 'ESPTOOLPY_FLASHMODE': 'dio',
+    expected = {'IDF_TARGET': 'esp32c5', 'ESPTOOLPY_FLASHSIZE': size,
+                'ESPTOOLPY_FLASHSIZE_' + size: 'y', flag: 'y', 'ESPTOOLPY_FLASHMODE': 'dio',
                 'ESPTOOLPY_FLASHFREQ': '80m', 'PARTITION_TABLE_SINGLE_APP': 'y',
                 'ESP_CONSOLE_NONE': 'y', 'ESP_CONSOLE_SECONDARY_NONE': 'y',
                 'C5_UART_RX_GPIO': '4', 'C5_UART_BAUD': '115200'}
@@ -31,7 +38,7 @@ def main(build):
         require(config.get('CONFIG_' + key) == value, f'Unexpected effective {key}: {config.get("CONFIG_" + key)}')
     require(config.get('CONFIG_SPIRAM') != 'y', 'PSRAM is not part of this profile')
     args = json.loads((build / 'flasher_args.json').read_text())
-    require(args['flash_settings']['flash_size'] == '32MB', 'Flash arguments disagree')
+    require(args['flash_settings']['flash_size'] == size, 'Flash arguments disagree')
     require(args['flash_settings']['flash_mode'] == 'dio', 'Unexpected flash mode')
     require(args['flash_settings']['flash_freq'] == '80m', 'Unexpected flash frequency')
     images = args['flash_files']
@@ -40,9 +47,9 @@ def main(build):
             f'Unexpected flash layout: {images}')
     for name in ('c5_uart_tool.bin', 'bootloader/bootloader.bin'):
         image = (build / name).read_bytes()
-        require(image[0] == 0xE9 and image[2] == 2 and image[3] == 0x5F
+        require(image[0] == 0xE9 and image[2] == 2 and image[3] == size_header
                 and int.from_bytes(image[12:14], 'little') == 23,
-                f'{name}: expected ESP32-C5 image, DIO, 80 MHz, 32 MB header')
+                f'{name}: expected ESP32-C5 image, DIO, 80 MHz, {size} header')
     entries = []
     partition_bytes = (build / 'partition_table/partition-table.bin').read_bytes()
     for offset in range(0, len(partition_bytes), 32):
@@ -68,14 +75,15 @@ def main(build):
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
-    shutil.copyfile('sdkconfig', destination / 'sdkconfig')
-    shutil.copyfile('sdkconfig.defaults', destination / 'sdkconfig.defaults')
+    shutil.copyfile(config_path, destination / 'sdkconfig')
+    shutil.copyfile(defaults_path, destination / 'sdkconfig.defaults')
     shutil.copytree(build / 'evidence', destination / 'evidence', dirs_exist_ok=True)
     def git(*args):
         return subprocess.check_output(['git', *args], text=True).strip()
     require(not git('diff', '--stat', 'HEAD'), 'Tracked source modified during build')
     manifest = {'source_sha': git('rev-parse', 'HEAD'), 'target': 'esp32c5',
-                'board_profile': 'Waveshare NXRX 32R8U (capacity not device-measured)',
+                'board_profile': ('RockBase NM-CYD-C5 16 MB (not device-measured)' if profile == 'cyd'
+                                  else 'Waveshare NXRX 32R8U (capacity not device-measured)'),
                 'idf_sha': git('-C', os.environ['IDF_PATH'], 'rev-parse', 'HEAD'),
                 'ci_run': os.environ.get('GITHUB_RUN_ID'), 'effective_profile': expected,
                 'physical_validation': False, 'files': {}}
