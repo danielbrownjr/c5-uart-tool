@@ -15,6 +15,24 @@ def require(condition, message):
         raise SystemExit(message)
 
 
+def verify_configs(config, generated, expected):
+    """Validate IDF's generated configuration as well as sdkconfig text."""
+    for key, value in expected.items():
+        text_value = config.get('CONFIG_' + key)
+        require(text_value == value, f'Unexpected effective {key}: {text_value}')
+        generated_value = generated.get(key)
+        # Kconfig booleans are 'y' in sdkconfig but true in SDKCONFIG JSON.
+        expected_json = True if value == 'y' else value
+        require(generated_value == expected_json,
+                f'Generated configuration mismatch for {key}: {generated_value!r} != {expected_json!r}')
+    require(config.get('CONFIG_SPIRAM') != 'y', 'PSRAM is not part of this profile')
+    require(generated.get('SPIRAM') not in (True, 'y'),
+            'Generated configuration unexpectedly enables PSRAM')
+    other = 'C5_BOARD_WAVESHARE' if 'C5_BOARD_CYD' in expected else 'C5_BOARD_CYD'
+    require(config.get('CONFIG_' + other) != 'y' and generated.get(other) not in (True, 'y'),
+            'Competing board profile enabled')
+
+
 def main(build):
     build = Path(build)
     profile = os.environ.get('C5_BOARD_PROFILE', 'waveshare')
@@ -34,9 +52,8 @@ def main(build):
                 'ESPTOOLPY_FLASHFREQ': '80m', 'PARTITION_TABLE_SINGLE_APP': 'y',
                 'ESP_CONSOLE_NONE': 'y', 'ESP_CONSOLE_SECONDARY_NONE': 'y',
                 'C5_UART_RX_GPIO': '4', 'C5_UART_BAUD': '115200'}
-    for key, value in expected.items():
-        require(config.get('CONFIG_' + key) == value, f'Unexpected effective {key}: {config.get("CONFIG_" + key)}')
-    require(config.get('CONFIG_SPIRAM') != 'y', 'PSRAM is not part of this profile')
+    generated = json.loads((build / 'config/sdkconfig.json').read_text())
+    verify_configs(config, generated, expected)
     args = json.loads((build / 'flasher_args.json').read_text())
     require(args['flash_settings']['flash_size'] == size, 'Flash arguments disagree')
     require(args['flash_settings']['flash_mode'] == 'dio', 'Unexpected flash mode')
