@@ -4,7 +4,11 @@ Receive-only 3.3 V UART diagnostic tool using the **Waveshare ESP32-C5-WIFI6-KIT
 
 **Status:** experimental v0.1 on [draft PR #1](https://github.com/danielbrownjr/c5-uart-tool/pull/1). M1 implements software acceptance only; see [software verification](docs/software-verification.md) for the protocol, build evidence and limits. No physical flashing or device validation has occurred.
 
-## Supported target
+## RockBase touchscreen migration (preparation)
+
+The user has selected the **RockBase NM-CYD-C5** as the next physical target while the original Waveshare board is unavailable. See [RockBase CYD migration preflight](docs/rockbase-cyd-c5-migration.md) and the **proposed only** 16 MB profile in `boards/nm-cyd-c5/sdkconfig.defaults`. The current firmware, CI, and software-verification claims below **still apply only to Waveshare NXRX**. This branch does **not** contain working CYD display/touch firmware and is not flash-ready. Keep PR #1 and its verified evidence intact.
+
+## Supported target (existing Waveshare build)
 
 - **Board:** Waveshare ESP32-C5-WIFI6-KIT-NXRX, identified by the rear PCB silkscreen in the project photos.
 - **Module:** ESP32-C5-WROOM-1U with external antenna.
