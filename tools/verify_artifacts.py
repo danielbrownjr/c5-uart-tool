@@ -22,7 +22,7 @@ def verify_configs(config, generated, expected):
         require(text_value == value, f'Unexpected effective {key}: {text_value}')
         generated_value = generated.get(key)
         # Kconfig booleans are 'y' in sdkconfig but true in SDKCONFIG JSON.
-        expected_json = True if value == 'y' else value
+        expected_json = True if value == 'y' else (int(value) if value.isdigit() else value)
         require(generated_value == expected_json,
                 f'Generated configuration mismatch for {key}: {generated_value!r} != {expected_json!r}')
     require(config.get('CONFIG_SPIRAM') != 'y', 'PSRAM is not part of this profile')
