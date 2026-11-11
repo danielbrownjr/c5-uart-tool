@@ -25,15 +25,19 @@
 #define STRIPE_HEIGHT 8
 
 // Test-pattern buffer only. Live UART UI is a later change.
-static uint16_t stripe[LCD_WIDTH * STRIPE_HEIGHT];
+static uint16_t stripes[3][LCD_WIDTH * STRIPE_HEIGHT];
 
 static esp_err_t panel_test_pattern(esp_lcd_panel_handle_t panel) {
     const uint16_t colors[3] = {0xF800, 0x07E0, 0x001F};
+    // DMA can outlive draw_bitmap(): never mutate an enqueued buffer.
+    for (unsigned c = 0; c < 3; ++c) {
+        for (unsigned i = 0; i < LCD_WIDTH * STRIPE_HEIGHT; ++i)
+            stripes[c][i] = colors[c];
+    }
     for (int y = 0; y < LCD_HEIGHT; y += STRIPE_HEIGHT) {
-        uint16_t color = colors[(y / 80) % 3];
-        for (unsigned i = 0; i < LCD_WIDTH * STRIPE_HEIGHT; ++i) stripe[i] = color;
+        unsigned band = (unsigned)(y / 80) % 3;
         esp_err_t err = esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_WIDTH,
-                                                  y + STRIPE_HEIGHT, stripe);
+                                                  y + STRIPE_HEIGHT, stripes[band]);
         if (err != ESP_OK) return err;
     }
     return ESP_OK;
