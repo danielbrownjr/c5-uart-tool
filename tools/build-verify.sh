@@ -10,8 +10,8 @@ case "$profile" in
         ;;
     cyd)
         build_dir=build-cyd
-        config_file=build-cyd/sdkconfig
-        defaults_file=boards/nm-cyd-c5/sdkconfig.defaults
+        config_file="$PWD/build-cyd/sdkconfig"
+        defaults_file="$PWD/boards/nm-cyd-c5/sdkconfig.defaults"
         ;;
     *) echo "Unsupported C5_BOARD_PROFILE: $profile" >&2; exit 2 ;;
 esac
