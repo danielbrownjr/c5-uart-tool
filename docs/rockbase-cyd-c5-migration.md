@@ -8,7 +8,7 @@ User's box identifies **NM-CYD-C5**, ESP32-C5, Chengdu Rockbass Technology Co., 
 
 Sources:
 - Official product wiki: https://wiki.rockbaseiot.com/docs/products/nm-cyd-c5/
-- Official source repository: https://github.com/RockBase-iot/NM-CYD-C5
+- Official source repository: https://github.com/RockBase-lab/NM-CYD-C5
 - Official ESPectre project mapping: https://wiki.rockbaseiot.com/docs/projects/espectre-nm-cyd-c5/
 - Official schematic linked from the wiki: https://github.com/RockBase-lab/NM-CYD-C5/tree/main/Documention/2-sch
 
