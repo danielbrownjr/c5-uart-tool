@@ -43,22 +43,28 @@ static esp_err_t panel_test_pattern(esp_lcd_panel_handle_t panel) {
     return ESP_OK;
 }
 
+static esp_err_t last_display_error = ESP_OK;
+
+esp_err_t c5_display_last_error(void) { return last_display_error; }
+
 esp_err_t c5_display_init(void) {
+    last_display_error = ESP_OK;
     // Keep other shared-SPI targets deselected; their drivers are not active.
     const gpio_config_t selects = {
         .pin_bit_mask = (1ULL << TOUCH_CS) | (1ULL << SD_CS),
         .mode = GPIO_MODE_OUTPUT,
     };
-    ESP_ERROR_CHECK(gpio_config(&selects));
-    ESP_ERROR_CHECK(gpio_set_level(TOUCH_CS, 1));
-    ESP_ERROR_CHECK(gpio_set_level(SD_CS, 1));
+    esp_err_t err = gpio_config(&selects);
+    if (err != ESP_OK) goto fail;
+    if ((err = gpio_set_level(TOUCH_CS, 1)) != ESP_OK) goto fail;
+    if ((err = gpio_set_level(SD_CS, 1)) != ESP_OK) goto fail;
 
     const gpio_config_t backlight = {
         .pin_bit_mask = (1ULL << LCD_BL),
         .mode = GPIO_MODE_OUTPUT,
     };
-    ESP_ERROR_CHECK(gpio_config(&backlight));
-    ESP_ERROR_CHECK(gpio_set_level(LCD_BL, 0));
+    if ((err = gpio_config(&backlight)) != ESP_OK) goto fail;
+    if ((err = gpio_set_level(LCD_BL, 0)) != ESP_OK) goto fail;
 
     const spi_bus_config_t spi = {
         .sclk_io_num = LCD_SCLK,
@@ -68,8 +74,8 @@ esp_err_t c5_display_init(void) {
         .quadhd_io_num = -1,
         .max_transfer_sz = LCD_WIDTH * STRIPE_HEIGHT * sizeof(uint16_t) + 8,
     };
-    esp_err_t err = spi_bus_initialize(LCD_SPI_HOST, &spi, SPI_DMA_CH_AUTO);
-    if (err != ESP_OK) return err;
+    err = spi_bus_initialize(LCD_SPI_HOST, &spi, SPI_DMA_CH_AUTO);
+    if (err != ESP_OK) goto fail;
 
     const esp_lcd_panel_io_spi_config_t io_config = {
         .cs_gpio_num = LCD_CS,
@@ -83,23 +89,32 @@ esp_err_t c5_display_init(void) {
     esp_lcd_panel_io_handle_t io = NULL;
     err = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_SPI_HOST,
                                    &io_config, &io);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK) goto fail;
 
     const esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = -1,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+        .data_endian = LCD_RGB_DATA_ENDIAN_LITTLE,
         .bits_per_pixel = 16,
     };
     esp_lcd_panel_handle_t panel = NULL;
     err = esp_lcd_new_panel_st7789(io, &panel_config, &panel);
-    if (err != ESP_OK) return err;
-    if ((err = esp_lcd_panel_reset(panel)) != ESP_OK) return err;
-    if ((err = esp_lcd_panel_init(panel)) != ESP_OK) return err;
-    if ((err = esp_lcd_panel_swap_xy(panel, true)) != ESP_OK) return err;
-    if ((err = esp_lcd_panel_disp_on_off(panel, true)) != ESP_OK) return err;
-    if ((err = panel_test_pattern(panel)) != ESP_OK) return err;
-    return gpio_set_level(LCD_BL, 1);
+    if (err != ESP_OK) goto fail;
+    if ((err = esp_lcd_panel_reset(panel)) != ESP_OK) goto fail;
+    if ((err = esp_lcd_panel_init(panel)) != ESP_OK) goto fail;
+    if ((err = esp_lcd_panel_swap_xy(panel, true)) != ESP_OK) goto fail;
+    if ((err = esp_lcd_panel_disp_on_off(panel, true)) != ESP_OK) goto fail;
+    if ((err = panel_test_pattern(panel)) != ESP_OK) goto fail;
+    if ((err = gpio_set_level(LCD_BL, 1)) != ESP_OK) goto fail;
+    return ESP_OK;
+fail:
+    // Keep the screen dark on initialization failure. The receiver still runs.
+    // Preserve the original failure code for debugger inspection; no unframed USB text.
+    (void)gpio_set_level(LCD_BL, 0);
+    last_display_error = err;
+    return err;
 }
 #else
 esp_err_t c5_display_init(void) { return ESP_OK; }
+esp_err_t c5_display_last_error(void) { return ESP_OK; }
 #endif
