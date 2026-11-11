@@ -1,6 +1,6 @@
 # RockBase NM-CYD-C5 migration preflight
 
-Status: **planning / software preparation only**. This is a second hardware target for C5 UART Tool; it does not supersede the Waveshare NXRX proof-of-concept or establish a bootable CYD firmware. Do not flash or wire hardware based solely on this file.
+Status: **experimental source implementation**. A CYD-specific ESP-IDF profile and an ST7789 color-bar bring-up test are now available for software builds. This does not establish working on-device firmware. Do not flash or wire hardware based solely on this file.
 
 ## Hardware identity and source policy
 
@@ -33,7 +33,7 @@ Sources:
 ## Migration boundaries
 
 1. Keep the Waveshare `feat/receive-only-uart-capture` implementation and PR #1 intact.
-2. Add an isolated CYD `sdkconfig` profile selecting **16 MB**, with 115200 8N1 receive-only GPIO4. Do not silently edit the NXRX 32 MB default or old verification assumptions.
+2. Use isolated CYD `sdkconfig` profile selecting **16 MB**, with 115200 8N1 receive-only GPIO4. The existing NXRX 32 MB defaults remain unchanged.
 3. Separate board-specific display/SPI/touch drivers from platform-neutral capture protocol, USB framing, and Python parser.
 4. Prefer native ESP-IDF display/touch drivers for the existing ESP-IDF v6.1 toolchain. Vendor Arduino/TFT_eSPI patches are references, not drop-in components.
 5. Protect capture responsiveness: bounded RX queue/history, no waiting on screen rendering, and one owner of the shared SPI bus. Keep existing native USB capture behavior when possible.
@@ -53,3 +53,15 @@ Sources:
 - [ ] Physical gate: PCB revision, connectors, exact pads, real flash capacity and voltage checked before flashing/wiring
 
 **Next software implementation:** create proper IDF board-profile selection, refactor the NXRX-only guards and verification script for explicitly selected 16/32 MB profiles, add panel and touch components, then run isolated CYD CI. No current CYD firmware has been built or flashed by this preparation.
+
+## Candidate build commands (software only)
+
+With an already installed ESP-IDF v6.1 environment:
+
+```sh
+bash tools/build-verify.sh
+C5_BOARD_PROFILE=cyd bash tools/build-verify.sh
+python3 -m unittest discover -s tests -v
+```
+
+The CYD build uses `build-cyd/` and its own `sdkconfig`, avoiding cross-contamination with the Waveshare `build/` profile. The ST7789 test currently draws red/green/blue horizontal color bands using ESP-IDF `esp_lcd`; the backlight is enabled only after successful panel setup. The XPT2046 touch handler and actual live UART display remain **unimplemented**. The current software cannot yet display captured UART bytes. Color order, landscape rotation and panel offsets require actual-device observation.
