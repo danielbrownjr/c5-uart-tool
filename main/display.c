@@ -35,7 +35,8 @@ static esp_err_t panel_test_pattern(esp_lcd_panel_handle_t panel) {
             stripes[c][i] = colors[c];
     }
     for (int y = 0; y < LCD_HEIGHT; y += STRIPE_HEIGHT) {
-        unsigned band = (unsigned)(y / 80) % 3;
+        // Asymmetric 40/80/120 px bands distinguish vertical mirroring from R/B swap.
+        unsigned band = y < 40 ? 0U : (y < 120 ? 1U : 2U);
         esp_err_t err = esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_WIDTH,
                                                   y + STRIPE_HEIGHT, stripes[band]);
         if (err != ESP_OK) return err;
@@ -49,22 +50,23 @@ esp_err_t c5_display_last_error(void) { return last_display_error; }
 
 esp_err_t c5_display_init(void) {
     last_display_error = ESP_OK;
+    // Drive the active-high backlight low before any other bus setup.
+    const gpio_config_t backlight = {
+        .pin_bit_mask = (1ULL << LCD_BL),
+        .mode = GPIO_MODE_OUTPUT,
+    };
+    esp_err_t err = gpio_set_level(LCD_BL, 0);
+    if (err != ESP_OK) goto fail;
+    if ((err = gpio_config(&backlight)) != ESP_OK) goto fail;
+
     // Keep other shared-SPI targets deselected; their drivers are not active.
     const gpio_config_t selects = {
         .pin_bit_mask = (1ULL << TOUCH_CS) | (1ULL << SD_CS),
         .mode = GPIO_MODE_OUTPUT,
     };
-    esp_err_t err = gpio_config(&selects);
-    if (err != ESP_OK) goto fail;
+    if ((err = gpio_config(&selects)) != ESP_OK) goto fail;
     if ((err = gpio_set_level(TOUCH_CS, 1)) != ESP_OK) goto fail;
     if ((err = gpio_set_level(SD_CS, 1)) != ESP_OK) goto fail;
-
-    const gpio_config_t backlight = {
-        .pin_bit_mask = (1ULL << LCD_BL),
-        .mode = GPIO_MODE_OUTPUT,
-    };
-    if ((err = gpio_config(&backlight)) != ESP_OK) goto fail;
-    if ((err = gpio_set_level(LCD_BL, 0)) != ESP_OK) goto fail;
 
     const spi_bus_config_t spi = {
         .sclk_io_num = LCD_SCLK,
