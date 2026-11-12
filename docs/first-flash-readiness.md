@@ -33,3 +33,11 @@ Do not use the Waveshare 32 MB image on this board. Do not confuse a successful 
 - Native USB framed heartbeat/status where supported.
 
 Touch controls and live UART hex/ASCII rendering are later milestones. This build is **not** a complete touchscreen serial monitor.
+
+## First-photo display correction (2026-11-12)
+
+The photographed initial CYD display showed top-to-bottom **magenta/pink (large)**, **cyan (medium)** and **blue (small)** while physically held portrait. This establishes that the screen and backlight respond, but the RGB565 hues were not correct and the asymmetric band order appeared vertically reversed. Device/photography colors are observations, not a proven controller-specific root cause.
+
+The targeted next firmware candidate uses the vendor MicroPython reference's MSB-first RGB565 convention: big-endian panel data mode with swapped native little-endian 16-bit test words, preserving the vendor's BGR setting. A panel Y mirror was also requested after XY swap to correct the observed band order. These are hypotheses pending another photo, not verified physical corrections.
+
+Expected on the next photo with the board upright in the same orientation: **red 40 px at top, green 80 px center, blue 120 px bottom**. Photograph the complete screen and note if red/blue channels remain swapped, the order remains reversed, or colors are non-primary. Keep flash/recovery/USB validation separate from screen acceptance. This test does not involve UART target wiring, touch, or microSD.
