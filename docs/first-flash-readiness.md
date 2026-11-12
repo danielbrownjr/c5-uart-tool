@@ -28,8 +28,8 @@ Do not use the Waveshare 32 MB image on this board. Do not confuse a successful 
 
 ## Expected demonstration
 
-- Red, green and blue bands on the 320×240 display, with colors and geometry recorded.
-- Receive-only UART firmware still initializes after display failure; the first display error is available through `c5_display_last_error()` for debugger inspection (the binary USB transport is not polluted with debug text).
+- Asymmetric top-to-bottom bands: red 40 px, green 80 px, blue 120 px across the 320×240 display. Photograph the order, actual colors, and any mirrored/clipped edges. Unequal heights distinguish a vertical flip from red/blue channel swapping.
+- Receive-only UART firmware still initializes after display failure; the first display error is retained in the `last_display_error` variable, inspectable by symbol in the ELF/debugger. The `c5_display_last_error()` function may be removed by linker section garbage collection when unreferenced (the binary USB transport is not polluted with debug text).
 - Native USB framed heartbeat/status where supported.
 
 Touch controls and live UART hex/ASCII rendering are later milestones. This build is **not** a complete touchscreen serial monitor.
