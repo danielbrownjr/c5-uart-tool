@@ -43,16 +43,16 @@ Sources:
 
 ## MVP verification checklist (not yet satisfied)
 
-- [ ] CYD-specific 16 MB effective configuration verified against app/bootloader headers and flash arguments
-- [ ] Native ESP32-C5 firmware build/link on exact candidate SHA, clean warnings and action runtimes
+- [x] CYD-specific 16 MB effective configuration verified against app/bootloader headers and flash arguments (CI run 43066542775, SHA `a62dba2`; revalidate on latest head)
+- [x] Native ESP32-C5 firmware build/link, clean warnings and action runtimes (CI run 43066542775, SHA `a62dba2`; revalidate on latest head)
 - [ ] ST7789 initializes with visible test content on real CYD
 - [ ] XPT2046 touch mapping calibrated and controls function on real CYD
 - [ ] Verified 3.3 V known-byte source appears on LCD, at 115200 8N1
-- [ ] Existing Waveshare capture/protocol host regression tests pass unchanged
+- [x] Existing Waveshare capture/protocol host regression tests pass unchanged (CI run 43066542775; revalidate on latest head)
 - [ ] USB host raw capture still works where supported, with no display-driven UART loss claim
 - [ ] Physical gate: PCB revision, connectors, exact pads, real flash capacity and voltage checked before flashing/wiring
 
-**Next software implementation:** create proper IDF board-profile selection, refactor the NXRX-only guards and verification script for explicitly selected 16/32 MB profiles, add panel and touch components, then run isolated CYD CI. No current CYD firmware has been built or flashed by this preparation.
+**Current software status:** isolated 16/32 MB profiles, ESP-IDF ST7789 color-bar path, generated-config verification and dual-profile CI are implemented. First physical display test, touch input and live UART rendering remain unverified or unimplemented. No CYD hardware has been flashed by this work.
 
 ## Candidate build commands (software only)
 
@@ -64,4 +64,4 @@ C5_BOARD_PROFILE=cyd bash tools/build-verify.sh
 python3 -m unittest discover -s tests -v
 ```
 
-The CYD build uses `build-cyd/` and its own `sdkconfig`, avoiding cross-contamination with the Waveshare `build/` profile. The ST7789 test currently draws red/green/blue horizontal color bands using ESP-IDF `esp_lcd`; the backlight is enabled only after successful panel setup. The XPT2046 touch handler and actual live UART display remain **unimplemented**. The current software cannot yet display captured UART bytes. Color order, landscape rotation and panel offsets require actual-device observation.
+The CYD build uses `build-cyd/` and its own `sdkconfig`, avoiding cross-contamination with the Waveshare `build/` profile. The ST7789 test currently draws asymmetric red 40 px / green 80 px / blue 120 px horizontal color bands using ESP-IDF `esp_lcd`; the backlight is enabled only after successful panel setup. The XPT2046 touch handler and actual live UART display remain **unimplemented**. The current software cannot yet display captured UART bytes. Color order, landscape rotation and panel offsets require actual-device observation.
