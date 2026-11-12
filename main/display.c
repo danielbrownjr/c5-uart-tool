@@ -32,7 +32,9 @@ static esp_err_t panel_test_pattern(esp_lcd_panel_handle_t panel) {
     // DMA can outlive draw_bitmap(): never mutate an enqueued buffer.
     for (unsigned c = 0; c < 3; ++c) {
         for (unsigned i = 0; i < LCD_WIDTH * STRIPE_HEIGHT; ++i)
-            stripes[c][i] = colors[c];
+            // Vendor reference emits RGB565 as MSB-first SPI bytes.
+            // CPU is little-endian, so swap in the immutable DMA word buffer.
+            stripes[c][i] = __builtin_bswap16(colors[c]);
     }
     for (int y = 0; y < LCD_HEIGHT; y += STRIPE_HEIGHT) {
         // Asymmetric 40/80/120 px bands distinguish vertical mirroring from R/B swap.
@@ -96,7 +98,7 @@ esp_err_t c5_display_init(void) {
     const esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = -1,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
-        .data_endian = LCD_RGB_DATA_ENDIAN_LITTLE,
+        .data_endian = LCD_RGB_DATA_ENDIAN_BIG,
         .bits_per_pixel = 16,
     };
     esp_lcd_panel_handle_t panel = NULL;
@@ -105,6 +107,8 @@ esp_err_t c5_display_init(void) {
     if ((err = esp_lcd_panel_reset(panel)) != ESP_OK) goto fail;
     if ((err = esp_lcd_panel_init(panel)) != ESP_OK) goto fail;
     if ((err = esp_lcd_panel_swap_xy(panel, true)) != ESP_OK) goto fail;
+    // Visible asymmetrical bands were vertically reversed on first hardware test.
+    if ((err = esp_lcd_panel_mirror(panel, false, true)) != ESP_OK) goto fail;
     if ((err = esp_lcd_panel_disp_on_off(panel, true)) != ESP_OK) goto fail;
     if ((err = panel_test_pattern(panel)) != ESP_OK) goto fail;
     if ((err = gpio_set_level(LCD_BL, 1)) != ESP_OK) goto fail;
